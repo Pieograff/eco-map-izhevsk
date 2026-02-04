@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавить нарушение</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .file-upload {
+            border: 2px dashed #4CAF50;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-upload:hover {
+            background: #f9f9f9;
+        }
+        
+        .file-upload i {
+            font-size: 48px;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        
+        #photoPreview {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(to right, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+        
+        .coordinates {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: monospace;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-map-marker-alt"></i> Добавить эко-нарушение</h1>
+        
+        <div class="coordinates">
+            <p><strong>Координаты:</strong></p>
+            <p>Широта: <span id="lat">{{ lat }}</span></p>
+            <p>Долгота: <span id="lon">{{ lon }}</span></p>
+        </div>
+        
+        <form id="markerForm" enctype="multipart/form-data">
+            <input type="hidden" name="lat" value="{{ lat }}">
+            <input type="hidden" name="lon" value="{{ lon }}">
+            <input type="hidden" name="user_id" value="{{ user_id }}">
+            
+            <div class="form-group">
+                <label for="title">Заголовок *</label>
+                <input type="text" id="title" name="title" placeholder="Например: Свалка строительного мусора" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Описание</label>
+                <textarea id="description" name="description" placeholder="Подробное описание проблемы..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="category">Категория *</label>
+                <select id="category" name="category" required>
+                    <option value="мусор">Мусор</option>
+                    <option value="вода">Загрязнение воды</option>
+                    <option value="воздух">Загрязнение воздуха</option>
+                    <option value="почва">Загрязнение почвы</option>
+                    <option value="другое">Другое</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Фотография (можно снять прямо сейчас)</label>
+                <div class="file-upload" onclick="document.getElementById('photo').click()">
+                    <i class="fas fa-camera"></i>
+                    <p>Нажмите для загрузки фото</p>
+                    <p><small>Или сделайте снимок</small></p>
+                    <input type="file" id="photo" name="photo" accept="image/*" capture="environment" style="display:none;" onchange="previewImage(event)">
+                </div>
+                <img id="photoPreview" alt="Предпросмотр">
+            </div>
+            
+            <button type="submit" class="btn">
+                <i class="fas fa-check"></i> Добавить нарушение
+            </button>
+            
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='/'">
+                <i class="fas fa-map"></i> Назад к карте
+            </button>
+        </form>
+        
+        <div id="successMessage" class="success-message">
+            <i class="fas fa-check-circle"></i> Нарушение успешно добавлено!
+        </div>
+    </div>
+
+    <script>
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('photoPreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        document.getElementById('markerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitBtn = document.querySelector('button[type="submit"]');
+            
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/markers', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('markerForm').reset();
+                    document.getElementById('photoPreview').style.display = 'none';
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    alert('Ошибка: ' + result.error);
+                }
+            } catch (error) {
+                alert('Ошибка соединения: ' + error);
+            } finally {
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Добавить нарушение';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
