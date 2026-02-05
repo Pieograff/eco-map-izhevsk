@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта эко-нарушений Ижевска</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        #map { 
+            height: 100vh; 
+            width: 100%; 
+        }
+        
+        .header {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 50px;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 90%;
+            border: 3px solid #4CAF50;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            background: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-size: 24px;
+            color: #4CAF50;
+            transition: all 0.3s;
+        }
+        
+        .control-btn:hover {
+            background: #4CAF50;
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .marker-popup img {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2><i class="fas fa-leaf" style="color:#4CAF50;"></i> Карта эко-нарушений Ижевска</h2>
+        <p>Добавляйте метки с фото. Для удаления: пароль <strong>eco2024</strong></p>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="controls">
+        <button class="control-btn" onclick="window.location.href='/add'" title="Добавить метку">
+            <i class="fas fa-plus"></i>
+        </button>
+        <button class="control-btn" onclick="refreshMarkers()" title="Обновить метки">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+        <button class="control-btn" onclick="locateUser()" title="Мое местоположение">
+            <i class="fas fa-location-arrow"></i>
+        </button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Карта Ижевска
+        const map = L.map('map').setView([56.8528, 53.2045], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // Загрузка меток
+        let markersLayer = L.layerGroup().addTo(map);
+        
+        async function loadMarkers() {
+            try {
+                const response = await fetch('/api/markers');
+                const markers = await response.json();
+                
+                markersLayer.clearLayers();
+                
+                markers.forEach(marker => {
+                    // Иконка в зависимости от категории
+                    let iconHtml = '📍';
+                    if (marker.category === 'мусор') iconHtml = '🗑️';
+                    if (marker.category === 'вода') iconHtml = '💧';
+                    if (marker.category === 'воздух') iconHtml = '💨';
+                    
+                    const icon = L.divIcon({
+                        className: 'custom-icon',
+                        html: `<div style="font-size:30px;">${iconHtml}</div>`,
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 40]
+                    });
+                    
+                    let popupContent = `
+                        <div style="min-width:200px;">
+                            <h3>${marker.title}</h3>
+                            <p>${marker.description || 'Нет описания'}</p>
+                            <p><strong>Категория:</strong> ${marker.category}</p>
+                    `;
+                    
+                    if (marker.photo_url) {
+                        popupContent += `<img src="${marker.photo_url}" style="max-width:100%;border-radius:5px;margin:10px 0;">`;
+                    }
+                    
+                    popupContent += `
+                            <p><small>Добавлено: ${new Date(marker.created_at).toLocaleString()}</small></p>
+                            <button onclick="deleteMarker(${marker.id})" 
+                                    style="background:#ff4444;color:white;border:none;padding:8px;border-radius:5px;width:100%;cursor:pointer;">
+                                <i class="fas fa-trash"></i> Удалить (пароль: eco2024)
+                            </button>
+                        </div>
+                    `;
+                    
+                    L.marker([marker.lat, marker.lon], { icon: icon })
+                        .bindPopup(popupContent)
+                        .addTo(markersLayer);
+                });
+            } catch (error) {
+                console.log('Ошибка загрузки меток:', error);
+            }
+        }
+        
+        async function deleteMarker(markerId) {
+            const password = prompt('Введите пароль для удаления (demo: eco2024):');
+            if (password !== 'eco2024') {
+                alert('Неверный пароль!');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/markers/${markerId}?password=eco2024`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Метка удалена!');
+                    loadMarkers();
+                } else {
+                    alert('Ошибка: ' + result.error);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error);
+            }
+        }
+        
+        function refreshMarkers() {
+            loadMarkers();
+        }
+        
+        function locateUser() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        map.setView([position.coords.latitude, position.coords.longitude], 15);
+                        L.marker([position.coords.latitude, position.coords.longitude])
+                            .addTo(map)
+                            .bindPopup('Вы здесь!')
+                            .openPopup();
+                    }
+                );
+            }
+        }
+        
+        // Загружаем метки при старте
+        loadMarkers();
+    </script>
+</body>
+</html>
