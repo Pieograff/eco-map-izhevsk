@@ -6,7 +6,9 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-this'
+
+# Настройки
+app.config['SECRET_KEY'] = 'eco-map-izhevsk-secret-key-2024'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
@@ -110,7 +112,6 @@ def delete_marker(marker_id):
     try:
         password = request.args.get('password', '')
         
-        # Простой пароль для демо
         if password != 'eco2024':
             return jsonify({'success': False, 'error': 'Неверный пароль'}), 403
         
